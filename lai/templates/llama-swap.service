@@ -1,0 +1,20 @@
+# @BANNER@
+[Unit]
+Description=llama-swap (local model router, managed by lai)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=@EXEC_START@
+Restart=on-failure
+RestartSec=5
+# Deliberately minimal: gen/llama-env.sh prepares oneAPI per backend process,
+# so the unit needs no toolchain environment and conda cannot leak into it.
+#
+# Deliberately no MemoryMax: a cgroup cap was added after a runaway load took
+# down the desktop, and removed because it starved models that keep part of
+# their weights in host RAM.
+Environment=HOME=@HOME@
+
+[Install]
+WantedBy=default.target

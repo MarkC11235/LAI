@@ -1,0 +1,35 @@
+[project]
+name = "lai"
+version = "0.1.0"
+description = "Generated, validated local LLM inference on dual Intel Arc Pro B70: llama.cpp SYCL and vLLM XPU behind llama-swap"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []  # the runtime is stdlib-only, deliberately
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyyaml>=6", "ruff>=0.6"]
+
+[project.scripts]
+lai = "lai.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["lai"]
+
+[tool.setuptools.package-data]
+lai = ["templates/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # the middle dot in display names is intentional

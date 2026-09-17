@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Start the Local Deep Research web UI (http://127.0.0.1:5000) against this stack.
+#
+# Checks the two layers LDR depends on before starting it, so a failed research
+# run points at LDR rather than at search or inference (docs/deep-research.md).
+set -euo pipefail
+
+root="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+venv="$root/.venv-ldr"
+
+if [[ ! -x "$venv/bin/python" ]]; then
+  echo "FATAL: no LDR venv at $venv; see docs/deep-research.md" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck source=../ldr.env
+. "$root/ldr.env"
+set +a
+export LDR_DATA_DIR="${LDR_DATA_DIR:-$root/ldr-data}"
+
+if ! curl -fsS -m 5 "${LDR_LLM_OPENAI_ENDPOINT_URL%/v1}/health" >/dev/null; then
+  echo "FATAL: llama-swap is not answering at $LDR_LLM_OPENAI_ENDPOINT_URL; run: lai status" >&2
+  exit 1
+fi
+searxng="$LDR_SEARCH_ENGINE_WEB_SEARXNG_DEFAULT_PARAMS_INSTANCE_URL"
+if ! curl -fsS -m 10 "$searxng/search?q=test&format=json" | grep -q '"results"'; then
+  echo "FATAL: SearXNG at $searxng is not returning JSON; try: docker start searxng" >&2
+  exit 1
+fi
+
+exec "$venv/bin/python" -m local_deep_research.web.app "$@"

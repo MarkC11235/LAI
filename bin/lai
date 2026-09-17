@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""lai: the LAI command-line tool. Run `lai --help`, or read README.md.
+
+A thin launcher, so the tool runs straight from a checkout (or through a
+symlink in ~/bin) with no install step. The code lives in lai/.
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from lai.cli import main  # noqa: E402
+
+sys.exit(main())
