@@ -29,6 +29,7 @@ pythonpath = [".", "tests"]
 [tool.ruff]
 line-length = 110
 target-version = "py311"
+exclude = ["vendor"]  # third-party patches, kept byte-identical to upstream
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
