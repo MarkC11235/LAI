@@ -43,7 +43,17 @@ from urllib.error import HTTPError, URLError
 # Filler vocabulary. Content is irrelevant -- generation length is pinned by
 # max_tokens and ignore_eos -- but varied words keep the tokenizer honest and
 # defeat prefix caching between runs.
-WORDS = ["arbor", "beacon", "cinder", "delta", "ember", "fathom", "girder", "hollow", "ingot", "jetty", "kernel", "lattice", "marrow", "nimbus", "onyx", "pylon", "quarry", "rivet", "socket", "tundra", "umbra", "vellum", "whisker", "xenon", "yarrow", "zephyr", "anvil", "bramble", "copper", "drift", "epoch", "flint", "granite", "harbor", "isthmus", "juniper", "kelp", "lumen", "mortar", "nectar", "obsidian", "plinth", "quill", "runnel", "slate", "thistle", "undertow", "vector", "willow"]
+WORDS = [
+        "arbor", "beacon", "cinder", "delta", "ember", "fathom",
+        "girder", "hollow", "ingot", "jetty", "kernel", "lattice",
+        "marrow", "nimbus", "onyx", "pylon", "quarry", "rivet",
+        "socket", "tundra", "umbra", "vellum", "whisker", "xenon",
+        "yarrow", "zephyr", "anvil", "bramble", "copper", "drift",
+        "epoch", "flint", "granite", "harbor", "isthmus", "juniper",
+        "kelp", "lumen", "mortar", "nectar", "obsidian", "plinth",
+        "quill", "runnel", "slate", "thistle", "undertow", "vector",
+        "willow"
+]
 
 
 def build_prompt(target_tokens, seed):
@@ -170,7 +180,7 @@ def run_model(args, model):
     for i in range(args.runs):
         try:
             result = measure(args.url, model, prompt_for(), args.max_tokens, args.timeout)
-        except Exception as err:  
+        except Exception as err:
             print(f"  run {i + 1}: FAILED: {err}")
             continue
         runs.append(result)
