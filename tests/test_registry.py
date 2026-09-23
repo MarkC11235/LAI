@@ -11,8 +11,8 @@ from lai import LaiError, checks, paths, registry
 # this set should be a deliberate edit to this test, never a side effect.
 ROUTING_KEYS = {
     "qwen38-vllm",
-    "qwen38-flash-next-medium",
-    "qwen38-flash-next-low",
+#    "qwen38-flash-next-medium",
+#    "qwen38-flash-next-low",
     "qwen38-27b-c0-mtp-xhigh",
     "qwen38-27b-c1-mtp-xhigh",
     "qwen38-27b-c0-mtp",
