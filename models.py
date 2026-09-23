@@ -93,8 +93,8 @@ QWEN38_VLLM = Model(
     # Safetensors, not GGUF: llama.cpp's converter drops the mtp.* tensors
     # this checkpoint exists for. SergiioB's GPTQ-Int4, mtp.* at BF16, rev 9d189a60.
     weights="Qwen3.8-27B-GPTQ-Int4-MTP/model.safetensors.index.json",
-    context=32768,
-    max_output=8192,
+    context=65536,
+    max_output=32768,
     # What vLLM claims, not the 16.6 GB of weights: it takes
     # gpu-memory-utilization of the card at load and holds it.
     vram_gb=28,
@@ -268,8 +268,8 @@ QWEN36_MOE = Model(
 
 MODELS: list[Model] = [
     QWEN38_VLLM,
-    flash_next("medium"),
-    flash_next("low"),
+#    flash_next("medium"),
+#    flash_next("low"),
     qwen38_27b("SYCL0", "xhigh"),
     qwen38_27b("SYCL1", "xhigh"),
     qwen38_27b("SYCL0", "medium"),
