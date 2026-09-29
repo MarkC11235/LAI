@@ -14,7 +14,16 @@ from pathlib import Path
 
 from lai.schema import Settings
 
-_BUILD_NUMBER = re.compile(r"version:\s*(\d+)")
+# Newer builds print "version: 0.5.0-dev (build 11259, commit ...)"; older ones
+# printed "version: 10729 (1e5ad35d5)". The trailing \s stops the old form
+# matching the 0 in 0.5.0.
+_BUILD_NUMBER = re.compile(r"\(build (\d+)|version:\s*(\d+)\s")
+
+
+def build_number(version_output: str) -> int | None:
+    """The build number in `llama-server --version` output, or None."""
+    match = _BUILD_NUMBER.search(version_output)
+    return int(match.group(1) or match.group(2)) if match else None
 
 
 class Host:
@@ -59,7 +68,7 @@ class Host:
                 result = subprocess.run(argv, capture_output=True, text=True, timeout=30)
             except (OSError, subprocess.SubprocessError):
                 continue
-            match = _BUILD_NUMBER.search(result.stdout + result.stderr)
-            if match:
-                return int(match.group(1))
+            build = build_number(result.stdout + result.stderr)
+            if build is not None:
+                return build
         return None
