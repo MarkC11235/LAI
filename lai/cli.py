@@ -47,7 +47,7 @@ class App:
 
     @cached_property
     def host(self) -> Host:
-        return Host(self.registry.settings, self.gen_dir / "llama-env.sh")
+        return Host(self.registry.settings, paths.wrapper_path(self.gen_dir))
 
     @cached_property
     def proxy(self) -> Proxy:
@@ -289,7 +289,7 @@ def foreground_argv(app: App, model: Model, port: int) -> list[str]:
             raise LaiError("no generated launcher. Run `lai gen` first.")
         return [str(launcher), str(port)]
 
-    wrapper = app.gen_dir / "llama-env.sh"
+    wrapper = render.model_wrapper(app.gen_dir, model)
     if not os.access(wrapper, os.X_OK):
         raise LaiError(f"{wrapper} is missing or not executable. Run `lai gen` first.")
     weights = app.host.find(model.weights)
@@ -306,20 +306,26 @@ def cmd_env(app: App, args: argparse.Namespace) -> int:
     A version string means the environment is fine and the problem is one model's
     arguments. Anything else means no model can start.
     """
-    wrapper = app.gen_dir / "llama-env.sh"
-    if not wrapper.exists():
-        raise LaiError("no generated wrapper. Run `lai gen` first.")
-    print(f"{term.DIM}{wrapper} --version{term.RESET}")
-    result = subprocess.run([str(wrapper), "--version"], capture_output=True, text=True)
-    output = (result.stdout + result.stderr).strip()
-    print(output or "(no output at all)")
-    # bash prefixes its own errors with the script path, so the path appearing in
-    # the output means the wrapper failed rather than llama-server answering.
-    if result.returncode != 0 or not output or str(wrapper) in output:
-        raise LaiError(f"wrapper exited {result.returncode}: the shared environment is broken, "
-                       "not any one model. Nothing will start until this passes.")
+    own = {render.model_wrapper(app.gen_dir, m)
+          for m in app.registry.active() if m.engine == "llama.cpp" and m.llama_server}
+    wrappers = [paths.wrapper_path(app.gen_dir), *sorted(own)]
+    for wrapper in wrappers:
+       if not wrapper.exists():
+           raise LaiError(f"{wrapper} was not generated. Run `lai gen` first.")
+       print(f"{term.DIM}{wrapper} --version{term.RESET}")
+       result = subprocess.run([str(wrapper), "--version"], capture_output=True, text=True)
+       output = (result.stdout + result.stderr).strip()
+       print(output or "(no output at all)")
+       # bash prefixes its own errors with the script path, so the path appearing in
+       # the output means the wrapper failed rather than llama-server answering.
+       if result.returncode != 0 or not output or str(wrapper) in output:
+           shared = wrapper == wrappers[0]
+           scope = ("the shared environment is broken, not any one model. Nothing will start"
+                    if shared else "only the models using this wrapper are affected")
+           raise LaiError(f"wrapper exited {result.returncode}: {scope}.")
+
     toolchain = "oneAPI resolves and " if app.registry.settings.oneapi_setvars else ""
-    term.info(f"wrapper ok: {toolchain}llama-server runs")
+    term.info(f"{len(wrappers)} wrapper(s) ok: {toolchain}llama-server runs")
     return 0
 
 
@@ -441,7 +447,7 @@ def _write_if_changed(path: Path, content: str, *, executable: bool) -> bool:
 
 
 def _remove_stale_launchers(gen_dir: Path, current: set[Path]) -> None:
-    for launcher in gen_dir.glob("vllm-*.sh"):
+    for launcher in [*gen_dir.glob("vllm-*.sh"), *gen_dir.glob("llama-env-*.sh")]:
         if launcher not in current:
             launcher.unlink()
             term.info(f"removed {launcher} (model no longer enabled)")

@@ -18,6 +18,8 @@ class FakeHost:
                  files: dict[Path, str] | None = None) -> None:
         self.settings = settings
         self.build = build
+        self.builds: dict[Path, int | None] = {}  # per-binary overrides of `build`
+        self.env_wrapper = Path("/gen/llama-env.sh")
         self.missing = set(missing)
         self.files = files or {}
 
@@ -32,8 +34,8 @@ class FakeHost:
     def read_text(self, path: Path) -> str | None:
         return self.files.get(path)
 
-    def llama_build(self) -> int | None:
-        return self.build
+    def llama_build(self, server: Path | None = None, wrapper: Path | None = None) -> int | None:
+        return self.builds.get(server, self.build) if server else self.build
 
 
 def make_model(**overrides) -> Model:

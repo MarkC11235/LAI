@@ -221,3 +221,31 @@ def test_wrapper_without_oneapi_passes_shellcheck(tmp_path):
     script.write_text(render.env_wrapper(make_registry(oneapi_setvars=None).settings))
     result = subprocess.run(["shellcheck", "-S", "warning", str(script)], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout
+
+
+# --- a model with its own llama-server binary ------------------------------------
+
+FORK = Path("/opt/fork/bin/llama-server")
+
+
+def test_own_binary_gets_its_own_wrapper(host_for):
+    registry = make_registry(make_model(id="main"), make_model(id="forked", llama_server=FORK))
+    files = {f.path.name: f for f in render.artifacts(registry, host_for(registry), GEN)}
+    assert "llama-env-forked.sh" in files and "llama-env-main.sh" not in files
+    assert files["llama-env-forked.sh"].executable
+    assert f"LLAMA_SERVER={FORK}" in files["llama-env-forked.sh"].content
+    assert "LLAMA_SERVER=/bin/llama-server" in files["llama-env.sh"].content  # shared one untouched
+
+
+def test_each_model_starts_through_its_own_wrapper(host_for):
+    registry = make_registry(make_model(id="main"), make_model(id="forked", llama_server=FORK))
+    host = host_for(registry)
+    main, forked = registry.models
+    assert render.backend_command(main, registry.settings, host, GEN).splitlines()[0] == \
+        "/repo/gen/llama-env.sh"
+    assert render.backend_command(forked, registry.settings, host, GEN).splitlines()[0] == \
+        "/repo/gen/llama-env-forked.sh"
+
+
+
+

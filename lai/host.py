@@ -29,9 +29,8 @@ def build_number(version_output: str) -> int | None:
 class Host:
     def __init__(self, settings: Settings, env_wrapper: Path) -> None:
         self.settings = settings
-        self.env_wrapper = env_wrapper
-        self._build: int | None = None
-        self._build_probed = False
+        self.env_wrapper = env_wrapper        
+        self._builds: dict[Path, int | None] = {}
 
     def find(self, relative_pattern: str) -> str | None:
         """First match (sorted) of a glob under the model directory, or None."""
@@ -47,22 +46,24 @@ class Host:
         except OSError:
             return None
 
-    def llama_build(self) -> int | None:
-        """The llama.cpp build number (e.g. 10729), or None if it can't be read.
+    def llama_build(self, server: Path | None = None, wrapper: Path | None = None) -> int | None:
+        """The build number (e.g. 10729) of a llama-server binary, or None if it
+        can't be read. Defaults to Settings.llama_server and the shared wrapper.
 
         Tried through the generated wrapper first: a bare llama-server built with
-        icpx (SYCL) dies without oneAPI on the library path. Probed once, then cached.
+        icpx (SYCL) dies without oneAPI on the library path. Probed once per
+        binary, then cached.
         """
-        if not self._build_probed:
-            self._build = self._probe_build()
-            self._build_probed = True
-        return self._build
+        server = server or self.settings.llama_server
+        if server not in self._builds:
+            self._builds[server] = self._probe_build(server, wrapper or self.env_wrapper)
+        return self._builds[server]
 
-    def _probe_build(self) -> int | None:
+    def _probe_build(self, server: Path, wrapper: Path) -> int | None:
         candidates = []
-        if self.env_wrapper.exists() and os.access(self.env_wrapper, os.X_OK):
-            candidates.append([str(self.env_wrapper), "--version"])
-        candidates.append([str(self.settings.llama_server), "--version"])
+        if wrapper.exists() and os.access(wrapper, os.X_OK):
+            candidates.append([str(wrapper), "--version"])
+        candidates.append([str(server), "--version"])      
         for argv in candidates:
             try:
                 result = subprocess.run(argv, capture_output=True, text=True, timeout=30)

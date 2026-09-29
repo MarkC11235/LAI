@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from pathlib import Path
+
 from conftest import make_model, make_registry
 
 from lai import checks
@@ -88,6 +90,19 @@ def test_unreadable_build_number_is_a_warning(host_for):
     registry = make_registry(make_model(arch="qwen4exp"))
     assert_warn(findings(registry, host_for(registry, build=None)), "could not read the llama.cpp build")
 
+def test_missing_per_model_binary_is_an_error(host_for):
+    fork = Path("/opt/fork/bin/llama-server")
+    registry = make_registry(make_model(id="a"), make_model(id="b", llama_server=fork))
+    host = host_for(registry, missing={str(fork)})
+    assert_error(findings(registry, host), f"llama-server not found at {fork}")
+
+
+def test_minimum_build_is_checked_against_the_models_own_binary(host_for):
+    fork = Path("/opt/fork/bin/llama-server")
+    registry = make_registry(make_model(arch="qwen4exp", llama_server=fork))
+    host = host_for(registry, build=10729)  # the shared binary is new enough
+    host.builds[fork] = 10000               # the fork is not
+    assert_error(findings(registry, host), f"{fork} is b10000")
 
 def test_ldr_env_model_must_be_enabled(host_for):
     registry = make_registry(make_model(id="a"))

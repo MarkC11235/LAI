@@ -117,6 +117,10 @@ class Model:
     `lai check` (see lai/checks.py)."""
 
     # --- llama-server (engine="llama.cpp") --------------------------------------------
+    llama_server: Path | None = None
+    """A different llama-server binary for this model only, e.g. a fork that adds
+    a quant format mainline lacks. None = `Settings.llama_server`. The model
+    gets its own generated wrapper, so the fork never touches other models."""
     gpu_layers: int = 99  # -ngl
     split_mode: SplitMode = "layer"  # -sm
     flash_attn: FlashAttn = "on"  # -fa

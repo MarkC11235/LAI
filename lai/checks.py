@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 
 from lai.host import Host
-from lai.paths import LDR_ENV_FILE
+from lai.paths import LDR_ENV_FILE, wrapper_path
 from lai.registry import Registry
 from lai.schema import ENGINES, FLASH_ATTN_MODES, LOAD_MODES, SPLIT_MODES, Model
 
@@ -79,8 +79,12 @@ def toolchain_present(registry: Registry, host: Host) -> Iterable[Finding]:
     if not any(m.engine == "llama.cpp" for m in registry.active()):
         return
     settings = registry.settings
-    if not host.exists(settings.llama_server):
-        yield error(f"llama-server not found at {settings.llama_server}")
+    servers = {settings.llama_server} | {
+        m.llama_server for m in registry.active() if m.engine == "llama.cpp" and m.llama_server
+    }
+    for server in sorted(servers):
+        if not host.exists(server):
+            yield error(f"llama-server not found at {server}")
     if settings.oneapi_setvars is not None and not host.exists(settings.oneapi_setvars):
         yield error(f"oneAPI setvars.sh not found at {settings.oneapi_setvars}")
 
@@ -114,22 +118,21 @@ def client_defaults_enabled(registry: Registry, host: Host) -> Iterable[Finding]
 
 
 def build_supports_architectures(registry: Registry, host: Host) -> Iterable[Finding]:
-    needed = {m.id: ARCH_MIN_BUILD[m.arch] for m in registry.active() if m.arch in ARCH_MIN_BUILD}
-    if not needed:
-        return
-    build = host.llama_build()
-    if build is None:
-        yield warn(
-            "could not read the llama.cpp build number, so the minimum-build check "
-            f"was skipped for: {', '.join(needed)}"
-        )
-        return
-    for model_id, minimum in needed.items():
-        if build < minimum:
-            yield error(
-                f"{model_id} needs llama.cpp b{minimum} or newer; "
-                f"{registry.settings.llama_server} is b{build}"
+    for model in registry.active():
+        minimum = ARCH_MIN_BUILD.get(model.arch)
+        if minimum is None:
+            continue
+        server = model.llama_server or registry.settings.llama_server
+        wrapper = wrapper_path(host.env_wrapper.parent, model.id) if model.llama_server else None
+        build = host.llama_build(server, wrapper)
+        if build is None:
+            yield warn(
+                f"could not read the llama.cpp build number of {server}, so the minimum-build "
+                f"check was skipped for {model.id}"
             )
+        elif build < minimum:
+            yield error(f"{model.id} needs llama.cpp b{minimum} or newer; {server} is b{build}")
+
 
 
 _LDR_MODEL = re.compile(r"""^\s*LDR_LLM_MODEL\s*=\s*["']?([^"'\s#]+)""", re.MULTILINE)

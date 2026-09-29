@@ -5,8 +5,9 @@ network. `artifacts()` is the whole output of `lai gen`; cli.py only writes it.
 
     gen/llama-swap.yaml    one entry per enabled model + the co-residency matrix
     gen/llama-env.sh       environment wrapper every llama-server starts through
+    gen/llama-env-<id>.sh  the same, for a model with its own llama_server binary
     gen/vllm-<id>.sh       container launcher per engine="vllm" model
-    gen/opencode.json      client config, installed to Settings.opencode_config
+    gen/opencode.json      client config, installed to Settings.opencode_config       
 
 Because the proxy config and the client config come from the same registry, a
 model's routing key cannot drift between them. That drift has no error message:
@@ -24,7 +25,7 @@ from pathlib import Path
 
 from lai import yamlout
 from lai.host import Host
-from lai.paths import REPO_ROOT, TEMPLATES_DIR, vllm_launcher
+from lai.paths import REPO_ROOT, TEMPLATES_DIR, vllm_launcher, wrapper_path
 from lai.registry import Registry
 from lai.schema import Model, Settings
 
@@ -46,6 +47,11 @@ def artifacts(registry: Registry, host: Host, gen_dir: Path) -> list[Artifact]:
     files = [
         Artifact(gen_dir / "llama-swap.yaml", llama_swap_config(registry, host, gen_dir)),
         Artifact(gen_dir / "llama-env.sh", env_wrapper(settings), executable=True),
+    ]
+    files += [
+           Artifact(model_wrapper(gen_dir, m), env_wrapper(settings, m.llama_server), executable=True)
+           for m in registry.active()
+           if m.engine == "llama.cpp" and m.llama_server
     ]
     files += [
         Artifact(vllm_launcher(gen_dir, m.id), vllm_launcher_script(m, settings), executable=True)
@@ -167,7 +173,7 @@ def backend_command(model: Model, settings: Settings, host: Host, gen_dir: Path)
         return f"{vllm_launcher(gen_dir, model.id)} ${{PORT}}"
     weights = host.find(model.weights) or f"MISSING:{settings.model_dir / model.weights}"
     mmproj = host.find(model.mmproj) if model.mmproj else None
-    lines = [str(gen_dir / "llama-env.sh")]
+    lines = [str(model_wrapper(gen_dir, model))]
     lines += [shell_join(group) for group in llama_server_args(model, settings, weights, mmproj)]
     return "\n".join(lines) + "\n"
 
@@ -224,8 +230,11 @@ def fill_template(name: str, **values: str) -> str:
         raise ValueError(f"template {name}: unfilled placeholders {leftover}")
     return text.replace("@BODY@", body) if body is not None else text
 
+def model_wrapper(gen_dir: Path, model: Model) -> Path:
+    """The wrapper a model starts through: its own if it has its own binary."""
+    return wrapper_path(gen_dir, model.id if model.llama_server else None)
 
-def env_wrapper(settings: Settings) -> str:
+def env_wrapper(settings: Settings, llama_server: Path | None = None) -> str:
     """The wrapper every llama-server starts through. The oneAPI parts are only
     emitted for a SYCL build; a CUDA or CPU build needs no environment prepared."""
     if settings.oneapi_setvars is not None:
@@ -238,7 +247,7 @@ def env_wrapper(settings: Settings) -> str:
         "llama-env.sh",
         ONEAPI_LINE=oneapi_line,
         ONEAPI_BLOCK=oneapi_block,
-        LLAMA_SERVER=shlex.quote(str(settings.llama_server)),
+        LLAMA_SERVER=shlex.quote(str(llama_server or settings.llama_server)),
     )
 
 def vllm_launcher_script(model: Model, settings: Settings, repo_root: Path = REPO_ROOT) -> str:

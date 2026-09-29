@@ -37,6 +37,9 @@ PROXY_LOG = GEN_DIR / "llama-swap.log"
 
 SYSTEMD_UNIT = Path.home() / ".config/systemd/user/llama-swap.service"
 
+def wrapper_path(gen_dir: Path, model_id: str | None = None) -> Path:
+    """The shared wrapper, or the one generated for a model with its own binary."""
+    return gen_dir / (f"llama-env-{model_id}.sh" if model_id else "llama-env.sh")
 
 def vllm_launcher(gen_dir: Path, model_id: str) -> Path:
     """Where the generated container launcher for a vLLM model lives."""

@@ -94,6 +94,13 @@ def test_stale_vllm_launchers_are_removed(app):
     cli.cmd_gen(app, gen_args(no_opencode=True))
     assert not stale.exists()
 
+def test_stale_model_wrappers_are_removed(app):
+    app.gen_dir.mkdir()
+    stale = app.gen_dir / "llama-env-no-longer-forked.sh"
+    stale.write_text("")
+    cli.cmd_gen(app, gen_args(no_opencode=True))
+    assert not stale.exists()
+    assert (app.gen_dir / "llama-env.sh").exists()  # the shared wrapper matches no stale glob
 
 def test_foreground_argv_substitutes_the_port(app):
     cli.cmd_gen(app, gen_args(no_opencode=True))
