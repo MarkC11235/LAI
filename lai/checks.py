@@ -84,6 +84,14 @@ def toolchain_present(registry: Registry, host: Host) -> Iterable[Finding]:
     if settings.oneapi_setvars is not None and not host.exists(settings.oneapi_setvars):
         yield error(f"oneAPI setvars.sh not found at {settings.oneapi_setvars}")
 
+def cards_declared(registry: Registry, host: Host) -> Iterable[Finding]:
+    """Without cards, every pinned model fails as "not in Settings.cards ()",
+    which blames the models for what is missing from the settings."""
+    if not registry.settings.cards:
+        yield error(
+            "Settings.cards is empty: list each GPU as {device: usable GiB}, "
+            "using the names from `llama-server --list-devices` (e.g. {'CUDA0': 5.5})"
+        )
 
 def routing_keys_unique(registry: Registry, host: Host) -> Iterable[Finding]:
     """Two entries claiming one key would silently shadow each other in llama-swap."""
@@ -365,6 +373,7 @@ ModelRule = Callable[[Model, Registry, Host], Iterable[Finding]]
 
 REGISTRY_RULES: tuple[RegistryRule, ...] = (
     toolchain_present,
+    cards_declared,
     routing_keys_unique,
     client_defaults_enabled,
     build_supports_architectures,

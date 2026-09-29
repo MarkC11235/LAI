@@ -37,9 +37,10 @@ class Settings:
 
     # --- toolchain ------------------------------------------------------------
     llama_server: Path = HOME / "llama.cpp/build/bin/llama-server"
-    oneapi_setvars: Path | None = Path("/opt/intel/oneapi/setvars.sh")
-    """Sourced before every llama-server start (SYCL builds). None for builds
-    that need no toolchain environment, such as CUDA."""
+    oneapi_setvars: Path | None = None
+    """Sourced before every llama-server start. Set it for a SYCL build
+    (e.g. /opt/intel/oneapi/setvars.sh); leave None for builds that need no
+    toolchain environment, such as CUDA or CPU."""
     model_dir: Path = HOME / "models"
     """Root that `Model.weights` and `Model.mmproj` are relative to."""
 
@@ -57,10 +58,12 @@ class Settings:
     activity_db: Path = HOME / ".local/state/llama-swap/activity.db"
 
     # --- hardware ---------------------------------------------------------------
-    cards: dict[str, float] = field(default_factory=lambda: {"SYCL0": 31.0, "SYCL1": 32.0})
-    """Usable GiB per card, keyed by llama.cpp device name, in device order.
-    SYCL0 drives the display and loses ~1 GiB. Drives `device` validation, the
-    per-card size check, and the co-residency matrix."""
+    cards: dict[str, float] = field(default_factory=dict)
+    """Usable GiB per card, keyed by llama.cpp device name (`llama-server
+    --list-devices`: SYCL0, CUDA0, ...), in device order. Subtract what the
+    display or other processes hold. Drives `device` validation, the per-card
+    size check, and the co-residency matrix. Required: `lai check` rejects an
+    empty mapping."""
 
     # --- opencode -----------------------------------------------------------------
     opencode_config: Path = HOME / ".config/opencode/opencode.json"

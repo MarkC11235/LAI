@@ -51,6 +51,10 @@ def test_missing_toolchain(host_for):
     assert_error(found, "llama-server not found")
     assert_error(found, "setvars.sh not found")
 
+def test_empty_cards_is_an_error(host_for):
+    registry = make_registry(make_model(device=None), cards={})
+    assert_error(findings(registry, host_for(registry)), "Settings.cards is empty")
+
 def test_oneapi_not_required_when_unset(host_for):
     registry = make_registry(oneapi_setvars=None)
     host = host_for(registry, missing={"/opt/intel/oneapi/setvars.sh"})

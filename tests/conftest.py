@@ -47,6 +47,7 @@ def make_registry(*models: Model, **settings_overrides) -> Registry:
         "model_dir": Path("/models"),
         "llama_server": Path("/bin/llama-server"),
         "oneapi_setvars": Path("/opt/intel/oneapi/setvars.sh"),
+        "cards": {"SYCL0": 31.0, "SYCL1": 32.0},
         "default_model": models[0].id,
         "small_model": models[0].id,
         "activity_db": Path("/state/activity.db"),

@@ -24,6 +24,10 @@ HOME = Path.home()
 SETTINGS = Settings(
     # b10729. qwen4exp (Flash-Next) needs b10664+; `lai check` verifies it.
     llama_server=HOME / "llama.cpp/build-new/bin/llama-server",
+    # SYCL build: every llama-server needs oneAPI's runtime on its library path.
+    oneapi_setvars=Path("/opt/intel/oneapi/setvars.sh"),
+    # 2x Arc Pro B70. SYCL0 drives the display and loses ~1 GiB.
+    cards={"SYCL0": 31.0, "SYCL1": 32.0}, 
     default_model="qwen38-27b-c1-mtp",
     small_model="qwen38-27b-c1-mtp",  # session titles; local so nothing leaves the box
     opencode_extra={

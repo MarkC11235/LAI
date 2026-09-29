@@ -18,6 +18,7 @@ ROOT = Path({root!r})
 SETTINGS = Settings(
     llama_server=ROOT / "bin/llama-server",
     oneapi_setvars=ROOT / "setvars.sh",
+    cards={{"SYCL0": 31.0, "SYCL1": 32.0}},
     model_dir=ROOT / "models",
     opencode_config=ROOT / "config/opencode.json",
     default_model="a",
