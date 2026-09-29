@@ -155,6 +155,9 @@ class ProxyService:
     def start(self) -> None:
         if not self.config.exists():
             raise LaiError("no generated config. Run `lai gen` first.")
+        # llama-swap refuses to start when the activity database's directory is
+        # missing, which it is on a fresh machine. Covers the systemd path too.
+        self.settings.activity_db.parent.mkdir(parents=True, exist_ok=True)
         if self.uses_systemd():
             subprocess.run(["systemctl", "--user", "start", "llama-swap"], check=False)
             time.sleep(1)
@@ -163,6 +166,7 @@ class ProxyService:
             term.info("already running")
             return
         self.pidfile.parent.mkdir(parents=True, exist_ok=True)
+        log_start = self.logfile.stat().st_size if self.logfile.exists() else 0
         with open(self.logfile, "ab") as log:
             child = subprocess.Popen(
                 [self.binary(), "--config", str(self.config), "--listen", self.listen],
@@ -174,7 +178,26 @@ class ProxyService:
             if self.proxy.healthy():
                 term.info(f"llama-swap up on {self.proxy.base_url} (pid {child.pid})")
                 return
+            if child.poll() is not None:
+                # Dead, not slow: say so, with the reason, instead of waiting out
+                # the loop and reporting "not answered yet".
+                self.pidfile.unlink(missing_ok=True)
+                raise LaiError(
+                    f"llama-swap exited with status {child.returncode} during startup:\n"
+                    f"{self._log_since(log_start)}"
+                )
         term.warn(f"started pid {child.pid}, but /health has not answered yet; see {self.logfile}")
+
+    def _log_since(self, offset: int, max_lines: int = 20) -> str:
+        """What llama-swap wrote to its log during this start, last lines only."""
+        try:
+            with open(self.logfile, "rb") as log:
+                log.seek(offset)
+                lines = log.read().decode(errors="replace").strip().splitlines()
+        except OSError:
+            return f"(could not read {self.logfile})"
+        return "\n".join(lines[-max_lines:]) or f"(nothing in {self.logfile})"
+    
 
     def stop(self) -> None:
         if self.uses_systemd():
