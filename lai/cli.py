@@ -37,8 +37,8 @@ class App:
     """Lazily built collaborators, so `lai ui` never imports the registry and
     `lai check` never opens a socket."""
 
-    def __init__(self, registry_file: Path = paths.REGISTRY_FILE, gen_dir: Path = paths.GEN_DIR) -> None:
-        self.registry_file = registry_file
+    def __init__(self, registry_file: Path | None = None, gen_dir: Path = paths.GEN_DIR) -> None:
+        self.registry_file = registry_file or paths.registry_file()
         self.gen_dir = gen_dir
 
     @cached_property
@@ -105,14 +105,20 @@ def cmd_ls(app: App, args: argparse.Namespace) -> int:
     print(f"{term.DIM}models on 'all' cards run alone{term.RESET}")
     return 0
 
+def _say_registry(app: App) -> None:
+    # Which file was picked is now a per-machine decision; show it, since the
+    # wrong one fails in confusing ways (every model "missing", wrong devices).
+    print(f"{term.DIM}registry: {app.registry_file}{term.RESET}")
 
 def cmd_check(app: App, args: argparse.Namespace) -> int:
+    _say_registry(app)
     findings = checks.run(app.registry, app.host)
     _print_findings(findings, len(app.registry.active()))
     return 1 if checks.has_errors(findings) else 0
 
 
 def cmd_gen(app: App, args: argparse.Namespace) -> int:
+    _say_registry(app)
     findings = checks.run(app.registry, app.host)
     _print_findings(findings, len(app.registry.active()))
     if checks.has_errors(findings) and not args.force:

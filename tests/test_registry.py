@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from conftest import FakeHost, make_model, make_registry
 
+from pathlib import Path
+
 from lai import LaiError, checks, paths, registry
 
 # Clients (opencode sessions, ldr.env, scripts) refer to these keys. Changing
@@ -74,3 +76,25 @@ def test_load_rejects_a_file_without_the_contract(tmp_path):
     bad.write_text("MODELS = []\n")
     with pytest.raises(LaiError, match="SETTINGS"):
         registry.load(bad)
+
+def test_registry_env_var_wins(tmp_path, monkeypatch):
+    monkeypatch.setattr(paths, "HOSTS_DIR", tmp_path)
+    (tmp_path / "box.py").write_text("")
+    chosen = paths.registry_file({"LAI_REGISTRY": "~/elsewhere.py"}, hostname="box")
+    assert chosen == Path("~/elsewhere.py").expanduser()
+
+
+def test_host_file_used_when_present(tmp_path, monkeypatch):
+    monkeypatch.setattr(paths, "HOSTS_DIR", tmp_path)
+    (tmp_path / "box.py").write_text("")
+    assert paths.registry_file({}, hostname="box") == tmp_path / "box.py"
+
+
+def test_falls_back_to_models_py(tmp_path, monkeypatch):
+    monkeypatch.setattr(paths, "HOSTS_DIR", tmp_path)
+    assert paths.registry_file({}, hostname="unknown-box") == paths.REGISTRY_FILE
+
+
+def test_missing_registry_is_a_clear_error(tmp_path):
+    with pytest.raises(LaiError, match="does not exist"):
+        registry.load(tmp_path / "nope.py")

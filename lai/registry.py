@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from lai import LaiError
-from lai.paths import REGISTRY_FILE
+from lai.paths import REGISTRY_ENV, REGISTRY_FILE
 from lai.schema import Model, Settings
 
 
@@ -35,9 +35,10 @@ class Registry:
         """Enabled models pinned to one card: the candidates for co-residency."""
         return [m for m in self.active() if m.device == card]
 
-
 def load(path: Path = REGISTRY_FILE) -> Registry:
     """Import a registry file and return its SETTINGS and MODELS."""
+    if not path.is_file():
+        raise LaiError(f"registry {path} does not exist (check ${REGISTRY_ENV}, or hosts/<hostname>.py)")
     spec = importlib.util.spec_from_file_location("lai_registry", path)
     if spec is None or spec.loader is None:
         raise LaiError(f"cannot load registry from {path}")
