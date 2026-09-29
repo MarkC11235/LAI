@@ -195,3 +195,25 @@ def test_generated_scripts_pass_shellcheck(tmp_path):
     checked = [str(s.path) for s in scripts] + [str(paths.REPO_ROOT / "bin/ldr")]
     result = subprocess.run(["shellcheck", "-x", "-S", "warning", *checked], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout
+
+def test_wrapper_without_oneapi_has_no_toolchain_setup():
+    wrapper = render.env_wrapper(make_registry(oneapi_setvars=None).settings)
+    # Code, not comments: the header comment still explains the oneAPI history.
+    code = [line for line in wrapper.splitlines() if not line.lstrip().startswith("#")]
+    assert not any("ONEAPI_SETVARS" in line or "source " in line or "ZES_" in line for line in code)
+    assert "strip_path" in wrapper  # the conda scrub applies to every backend
+    assert wrapper.rstrip().endswith('exec "$LLAMA_SERVER" "$@"')
+
+
+def test_wrapper_with_oneapi_sources_it():
+    wrapper = render.env_wrapper(make_registry().settings)
+    assert "ONEAPI_SETVARS=/opt/intel/oneapi/setvars.sh" in wrapper
+    assert 'source "$ONEAPI_SETVARS" --force' in wrapper
+
+
+@pytest.mark.skipif(shutil.which("shellcheck") is None, reason="shellcheck not installed")
+def test_wrapper_without_oneapi_passes_shellcheck(tmp_path):
+    script = tmp_path / "llama-env.sh"
+    script.write_text(render.env_wrapper(make_registry(oneapi_setvars=None).settings))
+    result = subprocess.run(["shellcheck", "-S", "warning", str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout

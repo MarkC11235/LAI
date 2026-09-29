@@ -226,12 +226,20 @@ def fill_template(name: str, **values: str) -> str:
 
 
 def env_wrapper(settings: Settings) -> str:
+    """The wrapper every llama-server starts through. The oneAPI parts are only
+    emitted for a SYCL build; a CUDA or CPU build needs no environment prepared."""
+    if settings.oneapi_setvars is not None:
+        oneapi_line = f"ONEAPI_SETVARS={shlex.quote(str(settings.oneapi_setvars))}"
+        oneapi_block = (TEMPLATES_DIR / "oneapi-block.sh").read_text().rstrip("\n")
+    else:
+        oneapi_line = "# No oneAPI on this host (Settings.oneapi_setvars is None)."
+        oneapi_block = "# No toolchain environment to prepare: this llama-server needs none."
     return fill_template(
         "llama-env.sh",
-        ONEAPI_SETVARS=shlex.quote(str(settings.oneapi_setvars)),
+        ONEAPI_LINE=oneapi_line,
+        ONEAPI_BLOCK=oneapi_block,
         LLAMA_SERVER=shlex.quote(str(settings.llama_server)),
     )
-
 
 def vllm_launcher_script(model: Model, settings: Settings, repo_root: Path = REPO_ROOT) -> str:
     return fill_template(

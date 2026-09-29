@@ -81,7 +81,7 @@ def toolchain_present(registry: Registry, host: Host) -> Iterable[Finding]:
     settings = registry.settings
     if not host.exists(settings.llama_server):
         yield error(f"llama-server not found at {settings.llama_server}")
-    if not host.exists(settings.oneapi_setvars):
+    if settings.oneapi_setvars is not None and not host.exists(settings.oneapi_setvars):
         yield error(f"oneAPI setvars.sh not found at {settings.oneapi_setvars}")
 
 

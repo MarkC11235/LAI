@@ -51,6 +51,10 @@ def test_missing_toolchain(host_for):
     assert_error(found, "llama-server not found")
     assert_error(found, "setvars.sh not found")
 
+def test_oneapi_not_required_when_unset(host_for):
+    registry = make_registry(oneapi_setvars=None)
+    host = host_for(registry, missing={"/opt/intel/oneapi/setvars.sh"})
+    assert messages(findings(registry, host), Severity.ERROR) == []
 
 def test_toolchain_not_required_for_vllm_only_registry(host_for):
     registry = make_registry(make_model(engine="vllm", launcher="--max-model-len $CONTEXT "

@@ -318,7 +318,8 @@ def cmd_env(app: App, args: argparse.Namespace) -> int:
     if result.returncode != 0 or not output or str(wrapper) in output:
         raise LaiError(f"wrapper exited {result.returncode}: the shared environment is broken, "
                        "not any one model. Nothing will start until this passes.")
-    term.info("wrapper ok: oneAPI resolves and llama-server runs")
+    toolchain = "oneAPI resolves and " if app.registry.settings.oneapi_setvars else ""
+    term.info(f"wrapper ok: {toolchain}llama-server runs")
     return 0
 
 

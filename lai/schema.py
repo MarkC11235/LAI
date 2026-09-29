@@ -37,7 +37,9 @@ class Settings:
 
     # --- toolchain ------------------------------------------------------------
     llama_server: Path = HOME / "llama.cpp/build/bin/llama-server"
-    oneapi_setvars: Path = Path("/opt/intel/oneapi/setvars.sh")
+    oneapi_setvars: Path | None = Path("/opt/intel/oneapi/setvars.sh")
+    """Sourced before every llama-server start (SYCL builds). None for builds
+    that need no toolchain environment, such as CUDA."""
     model_dir: Path = HOME / "models"
     """Root that `Model.weights` and `Model.mmproj` are relative to."""
 

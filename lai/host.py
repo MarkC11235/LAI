@@ -42,7 +42,7 @@ class Host:
         """The llama.cpp build number (e.g. 10729), or None if it can't be read.
 
         Tried through the generated wrapper first: a bare llama-server built with
-        icpx dies without oneAPI on the library path. Probed once, then cached.
+        icpx (SYCL) dies without oneAPI on the library path. Probed once, then cached.
         """
         if not self._build_probed:
             self._build = self._probe_build()
