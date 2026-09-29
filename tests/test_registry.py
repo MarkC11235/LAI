@@ -98,3 +98,16 @@ def test_falls_back_to_models_py(tmp_path, monkeypatch):
 def test_missing_registry_is_a_clear_error(tmp_path):
     with pytest.raises(LaiError, match="does not exist"):
         registry.load(tmp_path / "nope.py")
+
+# ---------------------------------------------------------------------------
+# Every per-machine registry in hosts/ is held to the same bar as models.py
+# ---------------------------------------------------------------------------
+
+HOST_REGISTRIES = sorted(paths.HOSTS_DIR.glob("*.py"))
+
+
+@pytest.mark.parametrize("path", HOST_REGISTRIES, ids=lambda p: p.stem)
+def test_host_registry_passes_every_check(path):
+    reg = registry.load(path)
+    found = checks.run(reg, FakeHost(reg.settings, build=10729))
+    assert [str(f) for f in found if f.severity is checks.Severity.ERROR] == []

@@ -13,7 +13,7 @@ import pytest
 import yaml
 from conftest import make_model, make_registry
 
-from lai import render
+from lai import paths, render
 
 GEN = Path("/repo/gen")
 
@@ -179,15 +179,19 @@ def test_artifacts_cover_every_generated_file(host_for):
     assert [f.executable for f in files] == [False, True, True, False]
     json.loads(files[-1].content)
 
-
 @pytest.mark.skipif(shutil.which("shellcheck") is None, reason="shellcheck not installed")
-def test_generated_scripts_pass_shellcheck(tmp_path):
-    """Covers the templates and the real launcher bodies in models.py together."""
+@pytest.mark.parametrize(
+    "registry_file",
+    [paths.REGISTRY_FILE, *sorted(paths.HOSTS_DIR.glob("*.py"))],
+    ids=lambda p: p.stem,
+)
+def test_generated_scripts_pass_shellcheck(tmp_path, registry_file):
+    """Covers the templates and the real launcher bodies of every registry together."""
     from conftest import FakeHost
 
-    from lai import paths, registry
+    from lai import registry
 
-    repo = registry.load(paths.REGISTRY_FILE)
+    repo = registry.load(registry_file)
     scripts = [a for a in render.artifacts(repo, FakeHost(repo.settings), tmp_path) if a.executable]
     assert scripts
     for script in scripts:
