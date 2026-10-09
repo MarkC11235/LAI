@@ -27,6 +27,20 @@ SETTINGS = Settings(
     # opencode's built-in webfetch stays enabled.
 )
 
+# Qwen3.5/3.6 thinking mode, "precise coding" preset from the model cards
+# (verified 2026-10-09 against Qwen3.5-9B and Qwen3.6-35B-A3B; identical).
+# The general preset is temp 1.0 + presence_penalty 1.5; the penalty fights code
+# that legitimately repeats identifiers, so the coding preset suits opencode.
+# repeat_penalty is stated so a llama.cpp default change can't alter behaviour.
+QWEN_THINKING_SAMPLER = {
+    "temp": 0.6,
+    "top_p": 0.95,
+    "top_k": 20,
+    "min_p": 0.0,
+    "presence_penalty": 0.0,
+    "repeat_penalty": 1.0,
+}
+
 # Plumbing test: small enough to load in seconds, still a thinking model with
 # tool calls, so every smoke rung exercises something real.
 QWEN3_TINY = Model(
@@ -61,6 +75,7 @@ QWEN35_9B = Model(
     ubatch=512,      # the compute buffer scales with this; 2048 does not fit
     batch=2048,
     reasoning_field="reasoning_content",
+    sampler=QWEN_THINKING_SAMPLER,
 )
 
 # Measured 2026-09-29, q8_0 KV, -ub 512, 32k context, each config run through a
@@ -101,8 +116,38 @@ BONSAI_27B = Model(
     ),
 )
 
+# Qwen3.6-35B-A3B (MoE, ~3B active per token), UD-IQ4_XS (16.5 GiB). Attention and
+# shared weights on the GPU, the experts of the first N of 40 layers in RAM.
+# IQ4_XS rather than the desktop's Q4_K_XL (20.8 GiB): this laptop has 30 GiB of RAM.
+# Measured 2026-09-29, q8_0 KV, -ub 512, 31.5k-token prefill:
+#   --n-cpu-moe 32: out of VRAM at load. 30, 28: same.
+#   --n-cpu-moe 34: 5166 MiB VRAM, 13.0 GiB RAM resident, prefill 575 t/s,
+#                   decode 24.0 t/s with 31.5k tokens in context.     <- this entry
+QWEN36_MOE = Model(
+    id="qwen36-moe",
+    name="Qwen3.6-35B-A3B IQ4_XS · experts of 34/40 layers in RAM",
+    weights="Qwen3.6-35B-A3B/Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
+    context=32768,
+    max_output=16384,
+    vram_gb=5.05,        # 5166 MiB peak, with a full 32k context
+    device="CUDA0",
+    cpu_moe_layers=34,   # 32 does not fit; see above
+    load_mode="none",    # experts read into RAM, not mapped: mapped pages get evicted
+                         # and re-read from disk mid-generation (desktop: 0.1 vs 10 t/s)
+    kv_type="q8_0",
+    ubatch=512,
+    batch=2048,
+    reasoning_field="reasoning_content",
+    sampler=QWEN_THINKING_SAMPLER,
+    request_params={"chat_template_kwargs": {"reasoning_effort": "medium"}},
+    extra_args=["-t", "6"],  # experts run on the CPU; 6 = physical cores
+    notes="Uses ~13 GiB of system RAM while loaded (experts), freed when it unloads.",
+)
+
+
 MODELS: list[Model] = [
     QWEN35_9B,
     BONSAI_27B,
     QWEN3_TINY,
+    QWEN36_MOE,
 ]
