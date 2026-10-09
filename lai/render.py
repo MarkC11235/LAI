@@ -7,7 +7,7 @@ network. `artifacts()` is the whole output of `lai gen`; cli.py only writes it.
     gen/llama-env.sh       environment wrapper every llama-server starts through
     gen/llama-env-<id>.sh  the same, for a model with its own llama_server binary
     gen/vllm-<id>.sh       container launcher per engine="vllm" model
-    gen/opencode.json      client config, installed to Settings.opencode_config       
+    gen/opencode.json      client config, installed to Settings.opencode_config
 
 Because the proxy config and the client config come from the same registry, a
 model's routing key cannot drift between them. That drift has no error message:

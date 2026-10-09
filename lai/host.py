@@ -29,7 +29,7 @@ def build_number(version_output: str) -> int | None:
 class Host:
     def __init__(self, settings: Settings, env_wrapper: Path) -> None:
         self.settings = settings
-        self.env_wrapper = env_wrapper        
+        self.env_wrapper = env_wrapper
         self._builds: dict[Path, int | None] = {}
 
     def find(self, relative_pattern: str) -> str | None:
@@ -63,7 +63,7 @@ class Host:
         candidates = []
         if wrapper.exists() and os.access(wrapper, os.X_OK):
             candidates.append([str(wrapper), "--version"])
-        candidates.append([str(server), "--version"])      
+        candidates.append([str(server), "--version"])
         for argv in candidates:
             try:
                 result = subprocess.run(argv, capture_output=True, text=True, timeout=30)

@@ -197,7 +197,7 @@ class ProxyService:
         except OSError:
             return f"(could not read {self.logfile})"
         return "\n".join(lines[-max_lines:]) or f"(nothing in {self.logfile})"
-    
+
 
     def stop(self) -> None:
         if self.uses_systemd():

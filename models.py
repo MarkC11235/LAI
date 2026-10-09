@@ -27,7 +27,7 @@ SETTINGS = Settings(
     # SYCL build: every llama-server needs oneAPI's runtime on its library path.
     oneapi_setvars=Path("/opt/intel/oneapi/setvars.sh"),
     # 2x Arc Pro B70. SYCL0 drives the display and loses ~1 GiB.
-    cards={"SYCL0": 31.0, "SYCL1": 32.0}, 
+    cards={"SYCL0": 31.0, "SYCL1": 32.0},
     default_model="qwen38-27b-c1-mtp",
     small_model="qwen38-27b-c1-mtp",  # session titles; local so nothing leaves the box
     opencode_extra={
@@ -56,10 +56,13 @@ SETTINGS = Settings(
 # Shared values
 # ===========================================================================
 
-# Qwen's recommended thinking-mode sampling. The two penalties are llama.cpp's
-# defaults, stated so a future default change can't silently alter behaviour.
+# Qwen3.5/3.6 thinking mode, "precise coding" preset from the model cards
+# (verified 2026-10-09 against Qwen3.5-9B and Qwen3.6-35B-A3B; identical).
+# The general preset is temp 1.0 + presence_penalty 1.5; the penalty fights code
+# that legitimately repeats identifiers, so the coding preset suits opencode.
+# repeat_penalty is stated so a llama.cpp default change can't alter behaviour.
 QWEN_THINKING_SAMPLER = {
-    "temp": 1.0,
+    "temp": 0.6,
     "top_p": 0.95,
     "top_k": 20,
     "min_p": 0.0,

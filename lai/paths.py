@@ -1,8 +1,8 @@
 """Filesystem layout of the repository and of the files lai installs."""
 
-from pathlib import Path
 import os
 import socket
+from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_DIR.parent
