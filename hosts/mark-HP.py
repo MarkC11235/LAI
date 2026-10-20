@@ -7,7 +7,7 @@ HOME = Path.home()
 SETTINGS = Settings(
     llama_server=HOME / "llama.cpp/build-cuda/bin/llama-server",
     oneapi_setvars=None,
-    cards={"CUDA0": 8},
+    cards={"CUDA0": 7.5},
     default_model="qwen35-9b",
     small_model="qwen35-9b",
 )
@@ -41,7 +41,52 @@ QWEN35_9B = Model(
     sampler=QWEN_THINKING_SAMPLER,
 )
 
+# ===========================================================================
+# LFM2.5-24B-A2B (MoE, arch lfm2moe), QAD Q4_0, RTX 2060 Super + CPU experts
+# ===========================================================================
+
+# Liquid's recommended sampler (the base model's generation_config.json). The
+# GGUF also carries these as general.sampling.*; stated here so a llama.cpp
+# default change can't alter behaviour, same as QWEN_THINKING_SAMPLER.
+LFM_SAMPLER = {
+    "temp": 0.1,
+    "top_k": 50,
+    "repeat_penalty": 1.05,
+}
+
+LFM25_MOE = Model(
+    id="lfm25-24b",
+    name="LFM2.5-24B-A2B QAD-Q4_0 · CUDA0 · CPU experts",
+    arch="lfm2moe",
+    # Quantization-aware-distilled Q4_0: same 13.6 GB as Qwen3.6 IQ3_XXS,
+    # but a real 4-bit trained to recover the quantization loss.
+    weights="LFM2.5-24B-A2B/LFM2.5-24B-A2B-QAD-Q4_0.gguf",
+    context=32768,
+    max_output=16384,
+    # 8 GB card. Most experts live in host RAM; this is what stays on the GPU.
+    # Re-measure with nvidia-smi once cpu_moe_layers is tuned.
+    vram_gb=6.5,
+    device="CUDA0",
+    # Experts of N layers on the CPU. Start high, lower until the card is
+    # ~7.5 GB used; each layer moved back to the GPU is a speed gain.
+    cpu_moe_layers=24,
+    # mmap with CPU-offloaded weights measured 0.1 vs 10 t/s (docs/findings.md).
+    # The CPU share (~10 GB) fits in 16 GB RAM, so read it in fully.
+    load_mode="none",
+    # Smaller than the B70 entries: the compute buffer comes out of 8 GB.
+    ubatch=1024,
+    batch=2048,
+    sampler=LFM_SAMPLER,
+    reasoning_field=None,  # instruct model, no separate reasoning stream
+    ttl=3600,  # cold load reads ~10 GB into RAM; don't evict on short idle
+    notes=(
+        "LFM tool-call format is its own; confirm opencode gets structured "
+        "tool_calls (not text) before relying on it. Fallback: the Qwen3.5-9B entry."
+    ),
+)
 
 MODELS: list[Model] = [
     QWEN35_9B,
+    LFM25_MOE,
 ]
+
