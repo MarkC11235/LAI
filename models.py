@@ -45,7 +45,25 @@ SETTINGS = Settings(
                 "enabled": True,
                 "environment": {"SEARXNG_URL": "http://127.0.0.1:8888"},
             },
-        },
+            # Headless Chromium so the agent can load pages it builds and read
+            # console errors. Same rule as searxng: absolute node + entry point,
+            # no npx/PATH. WebGL headless runs on SwiftShader (slow, but enough
+            # to catch shader/context errors).
+            # RUN:
+            #   npm install -g @playwright/mcp
+            #   node ~/.npm-global/lib/node_modules/@playwright/mcp/node_modules/playwright/cli.js install chromium
+            "playwright": {
+                "type": "local",
+                "command": [
+                    "/usr/bin/node",
+                    str(HOME / ".npm-global/lib/node_modules/@playwright/mcp/cli.js"),
+                    "--browser", "chromium",
+                    "--headless",
+                    "--isolated",
+                    ],
+                "enabled": True,
+                },
+        },            
         # Two URL readers make a local model pick the wrong one. The MCP
         # `web_url_read` wins: it has length and section controls, webfetch has none.
         "tools": {"webfetch": False},
