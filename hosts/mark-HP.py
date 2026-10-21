@@ -10,6 +10,78 @@ SETTINGS = Settings(
     cards={"CUDA0": 7.5},
     default_model="qwen35-9b",
     small_model="qwen35-9b",
+    # ── MCP setup on a new host (one-time) ──────────────────────────────────
+    # This block must live in THIS host's registry (hosts/<hostname>.py); on the
+    # multi-host branch models.py is not read on other machines. If `lai gen`
+    # says opencode.json "unchanged" after adding it, it's in the wrong file.
+    #
+    # 1. Node from apt (paths below assume /usr/bin/node, not nvm/conda):
+    #      sudo apt install -y nodejs npm
+    #      mkdir -p ~/.npm-global && npm config set prefix ~/.npm-global
+    # 2. MCP servers:
+    #      npm install -g mcp-searxng @playwright/mcp
+    # 3. Chromium matching the bundled playwright version:
+    #      node ~/.npm-global/lib/node_modules/@playwright/mcp/node_modules/playwright/cli.js \
+    #        install --with-deps chromium
+    #    (if --with-deps refuses the distro: drop it, then `ldd` the chrome
+    #     binary under ~/.cache/ms-playwright and apt-install what's missing)
+    # 4. SearXNG on :8888:
+    #      docker run -d --name searxng --restart unless-stopped \
+    #        -p 127.0.0.1:8888:8080 -v ~/searxng:/etc/searxng searxng/searxng
+    #    The image writes a minimal settings.yml with NO json format → 403.
+    #    Overwrite it (file is owned by the container's uid, so sudo):
+    #      sudo tee ~/searxng/settings.yml >/dev/null <<EOF
+    #      use_default_settings: true
+    #      server:
+    #        secret_key: "$(openssl rand -hex 32)"
+    #        limiter: false        # limiter needs Valkey; pointless on localhost
+    #      search:
+    #        formats: [html, json]
+    #      EOF
+    #      docker restart searxng
+    # 5. Verify:
+    #      curl -s 'http://127.0.0.1:8888/search?q=test&format=json' | head -c 200   # JSON, not 403
+    #      lai check && lai gen          # restart opencode after (not lai restart)
+    #      opencode mcp list             # searxng + playwright connected
+    # ────────────────────────────────────────────────────────────────────────
+    opencode_extra={
+        # Web search through the SearXNG container on :8888 (docs/deep-research.md).
+        # Direct node invocation with absolute paths: opencode spawns this as a
+        # subprocess, so it must not depend on PATH, conda, or the npm shebang.
+        # The entry point is dist/cli.js, not index.js, as of mcp-searxng 1.16.
+        "mcp": {
+            "searxng": {
+                "type": "local",
+                "command": [
+                    "/usr/bin/node",
+                    str(HOME / ".npm-global/lib/node_modules/mcp-searxng/dist/cli.js"),
+                ],
+                "enabled": True,
+                "environment": {"SEARXNG_URL": "http://127.0.0.1:8888"},
+            },
+            # Headless Chromium so the agent can load pages it builds and read
+            # console errors. Same rule as searxng: absolute node + entry point,
+            # no npx/PATH. WebGL headless runs on SwiftShader (slow, but enough
+            # to catch shader/context errors).
+            # RUN:
+            #   npm install -g @playwright/mcp
+            #   node ~/.npm-global/lib/node_modules/@playwright/mcp/node_modules/playwright/cli.js install chromium
+            "playwright": {
+                "type": "local",
+                "command": [
+                    "/usr/bin/node",
+                    str(HOME / ".npm-global/lib/node_modules/@playwright/mcp/cli.js"),
+                    "--browser", "chromium",
+                    "--headless",
+                    "--isolated",
+                    ],
+                "enabled": True,
+                },
+        },            
+        # Two URL readers make a local model pick the wrong one. The MCP
+        # `web_url_read` wins: it has length and section controls, webfetch has none.
+        "tools": {"webfetch": False},
+    },
 )
 
 # Qwen3.5/3.6 thinking mode, "precise coding" preset from the model cards
