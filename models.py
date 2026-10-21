@@ -23,7 +23,7 @@ HOME = Path.home()
 
 SETTINGS = Settings(
     # b10729. qwen4exp (Flash-Next) needs b10664+; `lai check` verifies it.
-    llama_server=HOME / "llama.cpp/build-new/bin/llama-server",
+    llama_server=HOME / "llama.cpp-bin/llama-server",
     # SYCL build: every llama-server needs oneAPI's runtime on its library path.
     oneapi_setvars=Path("/opt/intel/oneapi/setvars.sh"),
     # 2x Arc Pro B70. SYCL0 drives the display and loses ~1 GiB.
@@ -183,39 +183,39 @@ exec docker run --rm --name "$CONTAINER" \
 # ===========================================================================
 
 
-def flash_next(level: str) -> Model:
-    """One entry per reasoning effort. They share weights, so switching reloads."""
+def flash_next(level: str) -> model:
+    """one entry per reasoning effort. they share weights, so switching reloads."""
     return Model(
         id=f"qwen38-flash-next-{level}",
-        name=f"Qwen3.8 Flash-Next 125B-A6B IQ3_XXS · {level}",
+        name=f"qwen3.8 flash-next 125b-a6b iq3_xxs · {level}",
         arch="qwen4exp",
         weights="Qwen3.8-Flash-Next/UD-IQ3_XXS/Qwen3.8-Flash-Next-UD-IQ3_XXS-00001-of-00003.gguf",
         mmproj="Qwen3.8-Flash-Next/mmproj-F16.gguf",
         vision=True,
         context=65536,
         max_output=32768,
-        # Weights on the GPUs only; the ~29 GB n-gram (PLE) table stays in host RAM.
+        # weights on the gpus only; the ~29 gb n-gram (ple) table stays in host ram.
         vram_gb=52,
         device=None,  # needs both cards
-        # The architecture's hard limits, all enforced by `lai check`:
-        ubatch=2048,  # its sparse-attention budget; 2049 aborts with DEVICE_LOST
+        # the architecture's hard limits, all enforced by `lai check`:
+        ubatch=2048,  # its sparse-attention budget; 2049 aborts with device_lost
         kv_type=None,  # f16 only
-        load_mode=None,  # mmap only; pinning the PLE table exceeds 64 GB of RAM
-        ttl=3600,  # an 82 GB cold load; the default idle eviction makes it feel broken
+        load_mode=None,  # mmap only; pinning the ple table exceeds 64 gb of ram
+        ttl=3600,  # an 82 gb cold load; the default idle eviction makes it feel broken
         reasoning_field="reasoning_content",
         sampler={k: v for k, v in QWEN_THINKING_SAMPLER.items() if "penalty" not in k},
         request_params=effort(level),
         extra_args=[
-            # Keep the 51B n-gram embedding table in host RAM; -ngl 99 would try to
-            # put all of it on the cards. Never combine with cpu_moe_layers, which
-            # already places this tensor: doing both wastes ~11 GB of VRAM.
+            # keep the 51b n-gram embedding table in host ram; -ngl 99 would try to
+            # put all of it on the cards. never combine with cpu_moe_layers, which
+            # already places this tensor: doing both wastes ~11 gb of vram.
             "-ot", r"per_layer_token_embd\.weight=CPU",
             *IMAGE_TOKEN_ARGS,
         ],
         notes=(
-            "qwen4exp: 3 of 4 layers gated delta-net, the 4th Qwen Sparse Attention with a "
-            "2048-token budget. Short prompts never reach the sparse path, so only the "
-            "long-prefill smoke rung tests it. Do not use --slot-save-path: restores are "
+            "qwen4exp: 3 of 4 layers gated delta-net, the 4th qwen sparse attention with a "
+            "2048-token budget. short prompts never reach the sparse path, so only the "
+            "long-prefill smoke rung tests it. do not use --slot-save-path: restores are "
             "accepted and never reused, so every request re-prefills."
         ),
     )
@@ -275,8 +275,8 @@ QWEN36_MOE = Model(
 
 MODELS: list[Model] = [
     QWEN38_VLLM,
-#    flash_next("medium"),
-#    flash_next("low"),
+    flash_next("medium"),
+    flash_next("low"),
     qwen38_27b("SYCL0", "xhigh"),
     qwen38_27b("SYCL1", "xhigh"),
     qwen38_27b("SYCL0", "medium"),
